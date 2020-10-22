@@ -7,17 +7,26 @@ def clean_zipcode(zipcode)
 end
 
 def clean_phone_number(phone_number)
-  # If it's less than 10 digits it is a bad number.
-  phone_number
+  # Remove anything that is not an integer from the string.
+  integer_string = phone_number.gsub(/[^0123456789]/,'')
+
+  # If it's less than 10 digits or more than 11 it is a bad number.
+  if integer_string.length < 10 || integer_string.length > 11
+    "Invalid number"
+
   # If it's 10 digits assume it's good.
+  elsif integer_string.length == 10
+    integer_string
 
   # If it is 11 digits and the first number is 1, remove the 1 and use the
   # first 10 digits.
+  elsif integer_string.length == 11 && integer_string[0] == "1"
+    integer_string[1..-1]
 
-  # If the phone number is 11 digits and the first number is not 1, then it
-  # is a bad number.
-
-  # If the phone number is more than 11 digits assume that it is a bad number.
+  # If it is 11 digits and doesn't start with a 1. It is invalid.
+  elsif integer_string.length == 11
+    "Invalid number"
+  end
 
 end
 
@@ -60,7 +69,7 @@ contents.each do |row|
 
   # clean phone number and output to the terminal
   phone_number = clean_phone_number(row[:homephone])
-  puts phone_number
+  puts "#{name}: #{phone_number}"
 
   legislators = legislators_by_zipcode(zipcode)
 
