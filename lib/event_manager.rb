@@ -55,6 +55,12 @@ def save_thank_you_letter(id,form_letter)
   end
 end
 
+def save_phone_number(phone_number, name)
+  File.open('output/phone_numbers.txt', 'a') do |file|
+    file.write("#{name}: #{phone_number}\n")
+  end
+end
+
 puts "EventManager initialized."
 
 contents = CSV.open 'event_attendees.csv', headers: true, header_converters: :symbol
@@ -67,13 +73,13 @@ contents.each do |row|
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
 
-  # clean phone number and output to the terminal
-  phone_number = clean_phone_number(row[:homephone])
-  puts "#{name}: #{phone_number}"
-
   legislators = legislators_by_zipcode(zipcode)
 
   form_letter = erb_template.result(binding)
 
   save_thank_you_letter(id,form_letter)
+
+  # Save each name with the person's phone number.
+  phone_number = clean_phone_number(row[:homephone])
+  save_phone_number(phone_number, name)
 end
