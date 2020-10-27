@@ -72,6 +72,7 @@ contents.each do |row|
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
+  registration_date_and_time = DateTime.strptime(row[:regdate], '%m/%d/%y %k:%M')
 
   legislators = legislators_by_zipcode(zipcode)
 
@@ -82,4 +83,5 @@ contents.each do |row|
   # Save each name with the person's phone number.
   phone_number = clean_phone_number(row[:homephone])
   save_phone_number(phone_number, name)
+
 end
