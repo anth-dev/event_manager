@@ -61,7 +61,19 @@ def save_phone_number(phone_number, name)
   end
 end
 
+def save_registraion_hours(registration_times)
+  sorted_times = registration_times.sort_by { |k, v| -v }
+  File.open('output/registration_times.txt', 'a') do |file|
+    sorted_times.each do |time, count|
+      file.write "#{time}: #{count}\n"
+    end
+  end
+end
+
 puts "EventManager initialized."
+
+# Make a hash to store registration times.
+registration_times = Hash.new(0)
 
 contents = CSV.open 'event_attendees.csv', headers: true, header_converters: :symbol
 
@@ -72,16 +84,25 @@ contents.each do |row|
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
-  registration_date_and_time = DateTime.strptime(row[:regdate], '%m/%d/%y %k:%M')
+  
 
   legislators = legislators_by_zipcode(zipcode)
 
   form_letter = erb_template.result(binding)
 
+  # Save personalized thank you letters for each person.
   save_thank_you_letter(id,form_letter)
 
-  # Save each name with the person's phone number.
+  # Save each name with the person's phone number to file.
   phone_number = clean_phone_number(row[:homephone])
   save_phone_number(phone_number, name)
 
+  # Make a DateTime object for each person's registration.
+  registration_date_and_time = DateTime.strptime(row[:regdate], '%m/%d/%y %k:%M')
+
+  # Increment hash value for registration hour.
+  registration_times[registration_date_and_time.hour] += 1
 end
+
+# Save file showing registrations by hour.
+save_registraion_hours(registration_times)
