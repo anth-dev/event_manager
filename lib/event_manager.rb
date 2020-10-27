@@ -1,18 +1,20 @@
+# frozen_string_literal: true
+
 require 'csv'
 require 'google/apis/civicinfo_v2'
 require 'erb'
 
 def clean_zipcode(zipcode)
-  zipcode.to_s.rjust(5,"0")[0..4]
+  zipcode.to_s.rjust(5, '0')[0..4]
 end
 
 def clean_phone_number(phone_number)
   # Remove anything that is not an integer from the string.
-  integer_string = phone_number.gsub(/[^0123456789]/,'')
+  integer_string = phone_number.gsub(/[^0123456789]/, '')
 
   # If it's less than 10 digits or more than 11 it is a bad number.
   if integer_string.length < 10 || integer_string.length > 11
-    "Invalid number"
+    'Invalid number'
 
   # If it's 10 digits assume it's good.
   elsif integer_string.length == 10
@@ -20,14 +22,13 @@ def clean_phone_number(phone_number)
 
   # If it is 11 digits and the first number is 1, remove the 1 and use the
   # first 10 digits.
-  elsif integer_string.length == 11 && integer_string[0] == "1"
+  elsif integer_string.length == 11 && integer_string[0] == '1'
     integer_string[1..-1]
 
   # If it is 11 digits and doesn't start with a 1. It is invalid.
   elsif integer_string.length == 11
-    "Invalid number"
+    'Invalid number'
   end
-
 end
 
 def legislators_by_zipcode(zip)
@@ -38,19 +39,19 @@ def legislators_by_zipcode(zip)
     civic_info.representative_info_by_address(
       address: zip,
       levels: 'country',
-      roles: ['legislatorUpperBody', 'legislatorLowerBody']
+      roles: %w[legislatorUpperBody legislatorLowerBody]
     ).officials
-  rescue
-    "You can find your representatives by visiting www.commoncause.org/take-action/find-elected-officials"
+  rescue StandardError
+    'You can find your representatives by visiting www.commoncause.org/take-action/find-elected-officials'
   end
 end
 
-def save_thank_you_letter(id,form_letter)
-  Dir.mkdir("output") unless Dir.exist?("output")
+def save_thank_you_letter(id, form_letter)
+  Dir.mkdir('output') unless Dir.exist?('output')
 
   filename = "output/thanks_#{id}.html"
 
-  File.open(filename,'w') do |file|
+  File.open(filename, 'w') do |file|
     file.puts form_letter
   end
 end
@@ -62,7 +63,7 @@ def save_phone_number(phone_number, name)
 end
 
 def save_registraion_hours(registration_times)
-  sorted_times = registration_times.sort_by { |k, v| -v }
+  sorted_times = registration_times.sort_by { |_k, v| -v }
   File.open('output/registration_times.txt', 'a') do |file|
     sorted_times.each do |time, count|
       file.write "#{time}: #{count}\n"
@@ -70,28 +71,60 @@ def save_registraion_hours(registration_times)
   end
 end
 
-puts "EventManager initialized."
+def save_registration_days(registration_days)
+  sorted_days = registration_days.sort_by { |k, _v| k }
+  File.open('output/registration_days.txt', 'a') do |file|
+    sorted_days = sorted_days.map do |key, value|
+      file.write "#{english_day(key)}: #{value}\n"
+    end
+  end
+end
+
+def english_day(day)
+  case day
+  when 0
+    'Sunday'
+  when 1
+    'Monday'
+  when 2
+    'Tuesday'
+  when 3
+    'Wednesday'
+  when 4
+    'Thursday'
+  when 5
+    'Friday'
+  when 6
+    'Saturday'
+  else
+    'Something went wrong converting the day!'
+  end
+end
+
+puts 'EventManager initialized.'
 
 # Make a hash to store registration times.
 registration_times = Hash.new(0)
 
+# Make a hash to store registrations by day of the week.
+registration_days = Hash.new(0)
+
 contents = CSV.open 'event_attendees.csv', headers: true, header_converters: :symbol
 
-template_letter = File.read "form_letter.erb"
+template_letter = File.read 'form_letter.erb'
 erb_template = ERB.new template_letter
 
 contents.each do |row|
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
-  
 
   legislators = legislators_by_zipcode(zipcode)
 
   form_letter = erb_template.result(binding)
 
   # Save personalized thank you letters for each person.
-  save_thank_you_letter(id,form_letter)
+  save_thank_you_letter(id, form_letter)
 
   # Save each name with the person's phone number to file.
   phone_number = clean_phone_number(row[:homephone])
@@ -102,7 +135,13 @@ contents.each do |row|
 
   # Increment hash value for registration hour.
   registration_times[registration_date_and_time.hour] += 1
+
+  # Increment hash value for registration day.
+  registration_days[registration_date_and_time.wday] += 1
 end
 
 # Save file showing registrations by hour.
 save_registraion_hours(registration_times)
+
+# Save file showing registrations by day.
+save_registration_days(registration_days)
